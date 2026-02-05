@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "msg.sso.v1;ssov1";
+
+service Auth {
+  rpc Register (CredentialsRequest) returns (RegisterResponse);
+  rpc Login (CredentialsRequest) returns (LoginResponse);
+}
+
+// service Permissions could be described here the same as in another file
+
+message CredentialsRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  int64 user_id = 1;
+}
+
+message LoginResponse {
+  string token = 1;
+}
