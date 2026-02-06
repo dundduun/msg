@@ -1,0 +1,15 @@
+version: "3"
+
+tasks:
+  task: generate-sso
+  generate-sso:
+    aliases: [ gen-sso ]
+    desc: "Generate go code for sso from proto files"
+    cmds: [
+      protoc -I protos/proto
+        protos/proto/sso/*.proto
+        --go_out=./protos/gen/go
+        --go_opt=paths=source_relative
+        --go-grpc_out=./protos/gen/go
+        --go-grpc_opt=paths=source_relative
+    ]
