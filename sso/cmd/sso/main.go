@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/dundduun/msg/sso/internal/app"
 	"github.com/dundduun/msg/sso/internal/config"
 	"go.uber.org/zap"
 )
@@ -14,20 +15,29 @@ const (
 func main() {
 	cfg := config.MustLoad()
 
-	_ = setupLogger(cfg.Env)
+	logger := mustSetupLogger(cfg.Env)
+	defer logger.Sync()
 
-	// TODO: запустить приложение
+	logger.Info("starting application", zap.Any("cfg", cfg))
+
+	application := app.New(logger, cfg.GRPC.Port, cfg.TokenTTL)
+	application.MustRun()
 
 	// TODO: запустить gRPC-сервер
 }
 
-func setupLogger(env string) *zap.Logger {
+func mustSetupLogger(env string) *zap.Logger {
 	var log *zap.Logger
+	var err error
 	switch env {
 	case envLocal, envDev:
-		log, _ = zap.NewDevelopment()
+		log, err = zap.NewDevelopment()
 	case envProd:
-		log, _ = zap.NewProduction()
+		log, err = zap.NewProduction()
+	}
+
+	if err != nil {
+		panic("can't setup logger: " + err.Error())
 	}
 
 	return log
