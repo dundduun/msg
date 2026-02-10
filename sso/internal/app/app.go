@@ -25,7 +25,3 @@ func New(
 		GRPCSrv: grpcApp,
 	}
 }
-
-func (a *App) MustRun() {
-	a.GRPCSrv.MustRun()
-}

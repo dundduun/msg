@@ -4,6 +4,9 @@ import (
 	"github.com/dundduun/msg/sso/internal/app"
 	"github.com/dundduun/msg/sso/internal/config"
 	"go.uber.org/zap"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -21,23 +24,27 @@ func main() {
 	logger.Info("starting application", zap.Any("cfg", cfg))
 
 	application := app.New(logger, cfg.GRPC.Port, cfg.TokenTTL)
-	application.MustRun()
+	go application.GRPCSrv.MustRun()
 
-	// TODO: запустить gRPC-сервер
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	sig := <-stop
+
+	logger.Info("stopping application", zap.String("signal", sig.String()))
+
+	application.GRPCSrv.Stop()
+
+	logger.Info("application stopped")
 }
 
 func mustSetupLogger(env string) *zap.Logger {
 	var log *zap.Logger
-	var err error
 	switch env {
 	case envLocal, envDev:
-		log, err = zap.NewDevelopment()
+		log = zap.Must(zap.NewDevelopment())
 	case envProd:
-		log, err = zap.NewProduction()
-	}
-
-	if err != nil {
-		panic("can't setup logger: " + err.Error())
+		log = zap.Must(zap.NewProduction())
 	}
 
 	return log
