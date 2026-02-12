@@ -4,6 +4,8 @@ package auth;
 
 option go_package = "msg.sso.v1;ssov1";
 
+import "buf/validate/validate.proto";
+
 service Auth {
   rpc Register (CredentialsRequest) returns (RegisterResponse);
   rpc Login (CredentialsRequest) returns (LoginResponse);
@@ -12,8 +14,13 @@ service Auth {
 // service Permissions could be described here the same as in another file
 
 message CredentialsRequest {
-  string email = 1;
-  string password = 2;
+  string email = 1 [
+    (buf.validate.field).string.email = true,
+    (buf.validate.field).string.min_len = 5
+  ];
+  string password = 2 [
+    (buf.validate.field).string.min_len = 8
+  ];
 }
 
 message RegisterResponse {

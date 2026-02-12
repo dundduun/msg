@@ -19,10 +19,9 @@ func main() {
 	cfg := config.MustLoad()
 
 	logger := mustSetupLogger(cfg.Env)
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	logger.Info("starting application", zap.Any("cfg", cfg))
-
 	application := app.New(logger, cfg.GRPC.Port, cfg.TokenTTL)
 	go application.GRPCSrv.MustRun()
 
@@ -30,9 +29,7 @@ func main() {
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
 	sig := <-stop
-
 	logger.Info("stopping application", zap.String("signal", sig.String()))
-
 	application.GRPCSrv.Stop()
 
 	logger.Info("application stopped")

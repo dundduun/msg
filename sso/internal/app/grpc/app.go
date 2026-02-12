@@ -1,8 +1,10 @@
 package grpcapp
 
 import (
+	"buf.build/go/protovalidate"
 	"fmt"
 	authgrpc "github.com/dundduun/msg/sso/internal/grpc/auth"
+	protovalidatemiddleware "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"net"
@@ -15,7 +17,11 @@ type App struct {
 }
 
 func New(logger *zap.Logger, port int) *App {
-	srv := grpc.NewServer()
+	validator, _ := protovalidate.New()
+
+	srv := grpc.NewServer(grpc.UnaryInterceptor(
+		protovalidatemiddleware.UnaryServerInterceptor(validator),
+	))
 
 	authgrpc.Register(srv)
 
