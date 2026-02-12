@@ -1,45 +1,55 @@
 package auth
 
 import (
-	//"buf.build/go/protovalidate"
 	"context"
 	ssov1 "github.com/dundduun/msg/protos/gen/go/sso"
 	"google.golang.org/grpc"
-	//"google.golang.org/grpc/codes"
-	//"google.golang.org/grpc/status"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-//type Auth interface {
-//	Login(email, password string) (token string, err error)
-//	Register(email, password string) (err error)
-//}
+type Auth interface {
+	Login(ctx context.Context, email, password string) (token string, err error)
+	RegisterNewUser(ctx context.Context, email, password string) (uid int64, err error)
+}
 
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
-	//auth Auth
+	auth Auth
 }
 
 func Register(gRPC *grpc.Server) {
 	ssov1.RegisterAuthServer(gRPC, &serverAPI{})
 }
 
+//func Register(gRPC *grpc.Server, auth Auth) {
+//	ssov1.RegisterAuthServer(gRPC, &serverAPI{auth: auth})
+//}
+
 func (s *serverAPI) Login(
 	ctx context.Context,
 	req *ssov1.CredentialsRequest,
 ) (*ssov1.LoginResponse, error) {
-	return &ssov1.LoginResponse{Token: req.GetEmail() + " " + req.GetPassword()}, nil
-	//
-	//token, err := s.auth.Login(req.GetEmail(), req.GetPassword())
-	//if err != nil {
-	//	return nil, status.Errorf(codes.Internal, "failed to login")
-	//}
-	//
-	//return &ssov1.LoginResponse{Token: token}, nil
+	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword())
+	if err != nil {
+		// TODO: ...
+		return nil, status.Errorf(codes.Internal, "failed to login: %s", err)
+	}
+
+	return &ssov1.LoginResponse{Token: token}, nil
 }
 
 func (s *serverAPI) Register(
-	context.Context,
-	*ssov1.CredentialsRequest,
+	ctx context.Context,
+	req *ssov1.CredentialsRequest,
 ) (*ssov1.RegisterResponse, error) {
-	panic("implement me")
+	id, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
+	if err != nil {
+		// TODO: ...
+		return nil, status.Errorf(codes.Internal, "failed to register: %s", err)
+	}
+
+	return &ssov1.RegisterResponse{
+		UserId: id,
+	}, nil
 }
