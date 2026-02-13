@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"errors"
 	ssov1 "github.com/dundduun/msg/protos/gen/go/sso"
+	"github.com/dundduun/msg/sso/internal/services/auth"
+	"github.com/dundduun/msg/sso/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,8 +35,10 @@ func (s *serverAPI) Login(
 ) (*ssov1.LoginResponse, error) {
 	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		// TODO: ...
-		return nil, status.Errorf(codes.Internal, "failed to login: %s", err)
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
+		}
+		return nil, status.Error(codes.Internal, "failed to login")
 	}
 
 	return &ssov1.LoginResponse{Token: token}, nil
@@ -45,8 +50,10 @@ func (s *serverAPI) Register(
 ) (*ssov1.RegisterResponse, error) {
 	id, err := s.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
-		// TODO: ...
-		return nil, status.Errorf(codes.Internal, "failed to register: %s", err)
+		if errors.Is(err, storage.ErrEmailTaken) {
+			return nil, status.Error(codes.AlreadyExists, "email is already taken")
+		}
+		return nil, status.Error(codes.Internal, "failed to register")
 	}
 
 	return &ssov1.RegisterResponse{

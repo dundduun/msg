@@ -2,14 +2,19 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/dundduun/msg/sso/internal/domain/models"
 	"github.com/dundduun/msg/sso/internal/lib/werr"
+	"github.com/dundduun/msg/sso/internal/storage"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
 const cost = 12
+
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type Auth struct {
 	logger       *zap.Logger
@@ -23,7 +28,7 @@ type UserSaver interface {
 }
 
 type UserProvider interface {
-	ProvideUser(ctx context.Context, email string) (user models.User, err error)
+	User(ctx context.Context, email string) (user models.User, err error)
 }
 
 func New(
@@ -41,6 +46,31 @@ func New(
 }
 
 func (a *Auth) Login(ctx context.Context, email, password string) (string, error) {
+	const op = "auth.Login"
+
+	logger := a.logger.With(
+		zap.String("op", op),
+		zap.String("email", email),
+	)
+	logger.Info("attempting to log in user")
+
+	user, err := a.userProvider.User(ctx, email)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			logger.Warn("user not found", zap.Error(err))
+			return "", ErrInvalidCredentials
+		}
+
+		logger.Error("failed to provide user", zap.Error(err))
+		return "", werr.WrapError(op, err)
+	}
+
+	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		logger.Info("invalid credentials", zap.Error(err))
+
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+	}
+
 	panic("not implemented")
 }
 
@@ -61,6 +91,10 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (int
 
 	uid, err := a.userSaver.SaveUser(ctx, email, hash)
 	if err != nil {
+		if errors.Is(err, storage.ErrEmailTaken) {
+			logger.Warn("email taken", zap.Error(err))
+			return 0, werr.WrapError(op, err)
+		}
 		logger.Error("failed to save user", zap.Error(err))
 		return 0, werr.WrapError(op, err)
 	}
