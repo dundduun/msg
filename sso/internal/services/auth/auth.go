@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/dundduun/msg/sso/internal/domain/models"
+	"github.com/dundduun/msg/sso/internal/lib/jwt"
 	"github.com/dundduun/msg/sso/internal/lib/werr"
 	"github.com/dundduun/msg/sso/internal/storage"
 	"go.uber.org/zap"
@@ -21,14 +21,7 @@ type Auth struct {
 	userSaver    UserSaver
 	userProvider UserProvider
 	tokenTTL     time.Duration
-}
-
-type UserSaver interface {
-	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, err error)
-}
-
-type UserProvider interface {
-	User(ctx context.Context, email string) (user models.User, err error)
+	secret       string
 }
 
 func New(
@@ -36,12 +29,14 @@ func New(
 	userSaver UserSaver,
 	userProvider UserProvider,
 	tokenTTL time.Duration,
+	secret string,
 ) *Auth {
 	return &Auth{
 		logger:       logger,
 		userSaver:    userSaver,
 		userProvider: userProvider,
 		tokenTTL:     tokenTTL,
+		secret:       secret,
 	}
 }
 
@@ -68,10 +63,17 @@ func (a *Auth) Login(ctx context.Context, email, password string) (string, error
 	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		logger.Info("invalid credentials", zap.Error(err))
 
-		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		return "", werr.WrapError(op, ErrInvalidCredentials)
 	}
 
-	panic("not implemented")
+	token, err := jwt.CreateToken(user, a.tokenTTL, a.secret)
+	if err != nil {
+		logger.Error("failed to create token", zap.Error(err))
+
+		return "", werr.WrapError(op, err)
+	}
+
+	return token, nil
 }
 
 func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (int64, error) {
@@ -102,4 +104,12 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (int
 	logger.Info("user registered", zap.Int64("uid", uid))
 
 	return uid, nil
+}
+
+type UserSaver interface {
+	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, err error)
+}
+
+type UserProvider interface {
+	User(ctx context.Context, email string) (user models.User, err error)
 }
