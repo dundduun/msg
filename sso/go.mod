@@ -5,9 +5,12 @@ go 1.25.7
 require (
 	buf.build/go/protovalidate v1.1.1
 	github.com/dundduun/msg/protos v0.0.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
+	golang.org/x/crypto v0.48.0
 	google.golang.org/grpc v1.78.0
 )
 
@@ -16,9 +19,10 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/cel-go v0.27.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/net v0.50.0 // indirect
