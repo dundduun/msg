@@ -1,5 +1,15 @@
 env: "local"
-http_server:
-  address: "localhost:8083"
-  timeout: 4s
-  idle_timeout: 30s
+httpserver:
+  port: 3000
+db:
+  host: "localhost"
+  port: 5433
+  user: "admin"
+  password: "example"
+  name: "msg"
+
+#    "postgres://admin:example@localhost:5433/msg"
+#http_server:
+#  address: "localhost:8083"
+#  timeout: 4s
+#  idle_timeout: 30s

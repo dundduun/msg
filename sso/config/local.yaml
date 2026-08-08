@@ -7,5 +7,5 @@ db:
   port: 5432
   name: "postgres"
   user: "postgres"
-  password: "admin123"
+  password: "CbG#6Vf3yPlD!E"
 token_ttl: 1h

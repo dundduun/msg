@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_DB: msg
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pgdata:/var/pkg/postgresql
 
 volumes:
   pgdata:
