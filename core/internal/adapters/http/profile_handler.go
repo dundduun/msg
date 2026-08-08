@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"github.com/dundduun/msg/core/pkg/logerr"
+	"github.com/dundduun/msg/core/pkg/response"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/jackc/pgx/v5"
@@ -17,7 +18,7 @@ type ProfileService interface {
 
 type Response struct {
 	Profile Profile `json:"profile,omitempty"`
-	Error   string  `json:"error,omitempty"`
+	response.Response
 }
 
 type Profile struct {
@@ -50,7 +51,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		log.Warn("bad id number", slog.Int("id", id))
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, Response{
-			Error: "bad id",
+			Response: response.Error("bad id"),
 		})
 
 		return
@@ -65,7 +66,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		log.Warn("profile not found", slog.Int("id", id))
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, Response{
-			Error: "profile not found",
+			Response: response.Error("profile not found"),
 		})
 
 		return
@@ -73,13 +74,14 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		log.Error("failed to get profile", logerr.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, Response{
-			Error: "failed to get profile",
+			Response: response.Error("failed to get profile"),
 		})
 
 		return
 	}
 
 	render.JSON(w, r, Response{
-		Profile: profile,
+		Profile:  profile,
+		Response: response.OK(),
 	})
 }

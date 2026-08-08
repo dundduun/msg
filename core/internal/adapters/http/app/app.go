@@ -29,5 +29,7 @@ func (a *App) Start() {
 	r.Use(middleware.Logger)
 	r.Get("/profile/{id}", a.profileHandler.GetProfile)
 
-	http.ListenAndServe(fmt.Sprintf(":%d", a.port), r)
+	a.log.Info("starting server")
+	_ = http.ListenAndServe(fmt.Sprintf(":%d", a.port), r)
+	a.log.Info("server stopped")
 }
