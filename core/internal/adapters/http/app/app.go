@@ -5,7 +5,6 @@ import (
 	profile "github.com/dundduun/msg/core/internal/adapters/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/http"
 )
@@ -16,11 +15,11 @@ type App struct {
 	profileHandler *profile.ProfileHandler
 }
 
-func New(log *slog.Logger, port int, conn *pgx.Conn, service profile.ProfileService) *App {
+func New(log *slog.Logger, port int, service profile.ProfileService) *App {
 	return &App{
 		log:            log,
 		port:           port,
-		profileHandler: profile.NewProfileHandler(service, conn, log),
+		profileHandler: profile.NewProfileHandler(service),
 	}
 }
 

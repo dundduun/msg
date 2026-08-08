@@ -29,7 +29,7 @@ func main() {
 		panic("failed to connect: " + err.Error())
 	}
 
-	a := app.New(log, cfg.HTTPServer.Port, conn, profile.NewService())
+	a := app.New(log, cfg.HTTPServer.Port, profile.NewService(conn, log))
 	a.Start()
 }
 
