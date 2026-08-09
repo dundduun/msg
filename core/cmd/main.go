@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dundduun/msg/core/internal/adapters/http/app"
 	"github.com/dundduun/msg/core/internal/config"
+	"github.com/dundduun/msg/core/internal/infra/postgres"
 	"github.com/dundduun/msg/core/internal/profile"
 	"github.com/jackc/pgx/v5"
 	"log/slog"
@@ -29,7 +30,7 @@ func main() {
 		panic("failed to connect: " + err.Error())
 	}
 
-	a := app.New(log, cfg.HTTPServer.Port, profile.NewService(conn, log))
+	a := app.New(log, cfg.HTTPServer.Port, profile.NewService(postgres.NewProfileRepo(conn), log))
 	a.Start()
 }
 

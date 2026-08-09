@@ -5,20 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dundduun/msg/core/pkg/logerr"
-	"github.com/jackc/pgx/v5"
 	"log/slog"
 )
 
-var ErrNoProfile = errors.New("profile doesn't exist")
+var ErrNoProfile = errors.New("profile not found")
+
+type Repo interface {
+	Profile(ctx context.Context, id int) (Profile, error)
+}
 
 type Service struct {
-	conn *pgx.Conn // убрать
+	repo Repo
 	log  *slog.Logger
 }
 
-func NewService(conn *pgx.Conn, log *slog.Logger) *Service {
+func NewService(repo Repo, log *slog.Logger) *Service {
 	return &Service{
-		conn: conn,
+		repo: repo,
 		log:  log,
 	}
 }
@@ -27,19 +30,16 @@ func (s *Service) GetProfile(ctx context.Context, id int) (Profile, error) {
 	const op = "profile.Service.GetProfile"
 	log := s.log.With(slog.String("op", op), slog.Int("id", id))
 
-	row := s.conn.QueryRow(ctx, "select id, username, name from profile where id = $1 limit 1", id)
-
-	profile := Profile{}
-
-	err := row.Scan(&profile.ID, &profile.Username, &profile.Name)
+	profile, err := s.repo.Profile(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Profile{}, ErrNoProfile
-		} else {
+		switch {
+		case errors.Is(err, ErrNoProfile):
+			return Profile{}, fmt.Errorf("%s: %w", op, err)
+		default:
 			log.Error("failed to get profile", logerr.Err(err))
 			return Profile{}, fmt.Errorf("%s: %w", op, err)
 		}
 	}
 
-	return profile, err
+	return profile, nil
 }
