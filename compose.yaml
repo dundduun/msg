@@ -1,15 +1,50 @@
 services:
   db:
     image: postgres
-    restart: always
+    container_name: msg_db
+    restart: unless-stopped
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_PASSWORD: example
-      POSTGRES_USER: admin
-      POSTGRES_DB: msg
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - pgdata:/var/lib/postgresql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  cache:
+    image: redis
+    container_name: msg_cache
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
 volumes:
   pgdata:
+  redisdata:
+
+networks:
+  backend:
+    driver: bridge
+
+#depends_on:
+#  db:
+#    condition: service_healthy
+#  cache:
+#    condition: service_healthy
