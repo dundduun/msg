@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 	"os"
 )
 
@@ -9,6 +10,14 @@ func MustLoad() *Config {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		panic("empty config path")
+	}
+
+	envPath := os.Getenv("DOTENV_PATH")
+	if envPath != "" {
+		err := godotenv.Load(envPath)
+		if err != nil {
+			panic("failed to load .env: " + err.Error())
+		}
 	}
 
 	cfg := &Config{}
@@ -22,8 +31,16 @@ func MustLoad() *Config {
 
 type Config struct {
 	Env        string     `yaml:"env" env-default:"development"`
-	DB         DB         `yaml:"db" env-required:"true"`
+	DB         DB         `yaml:"db"`
 	HTTPServer HTTPServer `yaml:"httpserver"`
+}
+
+type DB struct {
+	Host     string `env:"DB_HOST" yaml:"host" env-required:"true"`
+	Port     int    `env:"DB_PORT" yaml:"port" env-required:"true"`
+	User     string `env:"DB_USER" yaml:"user" env-required:"true"`
+	Password string `env:"DB_PASSWORD" yaml:"password" env-required:"true"`
+	Name     string `env:"DB_NAME" yaml:"name" env-required:"true"`
 }
 
 type HTTPServer struct {
@@ -31,12 +48,4 @@ type HTTPServer struct {
 	//	Address     string        `yaml:"address" env-default:"0.0.0.0:8080"`
 	//	Timeout     time.Duration `yaml:"timeout" env-default:"5s"`
 	//	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
-}
-
-type DB struct {
-	Host     string `yaml:"host" env-required:"true"`
-	Port     int    `yaml:"port" env-required:"true"`
-	User     string `yaml:"user" env-required:"true"`
-	Password string `yaml:"password" env-required:"true"`
-	Name     string `yaml:"name" env-required:"true"`
 }

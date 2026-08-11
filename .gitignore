@@ -1,6 +1,6 @@
 # env file
 .env
-./config
+!.env.example
 
 # Executables
 bin
