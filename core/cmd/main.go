@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/dundduun/msg/core/internal/adapters/http/app"
 	"github.com/dundduun/msg/core/internal/config"
-	"github.com/dundduun/msg/core/internal/infra/postgres"
-	"github.com/dundduun/msg/core/internal/profile"
 	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"os"
+)
+
+var (
+	envLocal = "local"
+	envDev   = "development"
+	envProd  = "production"
 )
 
 func main() {
@@ -30,15 +34,9 @@ func main() {
 		panic("failed to connect: " + err.Error())
 	}
 
-	a := app.New(log, cfg.HTTPServer.Port, profile.NewService(postgres.NewProfileRepo(conn), log))
+	a := app.New(log, conn, cfg.HTTPServer.Port)
 	a.Start()
 }
-
-var (
-	envLocal = "local"
-	envDev   = "development"
-	envProd  = "production"
-)
 
 func setupLogger(env string) *slog.Logger {
 	var handler slog.Handler
