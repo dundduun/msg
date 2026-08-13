@@ -5,5 +5,7 @@
 # Executables
 bin
 
+tmp/
+
 # Editor/IDE
 *.idea/
