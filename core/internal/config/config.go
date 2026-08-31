@@ -30,7 +30,7 @@ func MustLoad() *Config {
 }
 
 type Config struct {
-	Env        string     `yaml:"env" env-default:"development"`
+	Env        string     `env:"ENV" yaml:"env" env-default:"development"`
 	DB         DB         `yaml:"db"`
 	HTTPServer HTTPServer `yaml:"httpserver"`
 }
@@ -44,7 +44,7 @@ type DB struct {
 }
 
 type HTTPServer struct {
-	Port int `yaml:"int" env-default:"3000"`
+	Port int `yaml:"port"`
 	//	Address     string        `yaml:"address" env-default:"0.0.0.0:8080"`
 	//	Timeout     time.Duration `yaml:"timeout" env-default:"5s"`
 	//	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`

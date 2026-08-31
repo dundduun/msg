@@ -1,4 +1,23 @@
 services:
+  app:
+    container_name: msg_app
+    working_dir: /app
+    image: cosmtrek/air
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+    environment:
+      - ENV=local
+    networks:
+      - backend
+    command: sh -c "cd core && go tool air"
+
   db:
     image: postgres
     container_name: msg_db
@@ -42,9 +61,3 @@ volumes:
 networks:
   backend:
     driver: bridge
-
-#depends_on:
-#  db:
-#    condition: service_healthy
-#  cache:
-#    condition: service_healthy

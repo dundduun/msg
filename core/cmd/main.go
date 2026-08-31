@@ -29,9 +29,11 @@ func main() {
 		cfg.DB.Port,
 		cfg.DB.Name,
 	)
+
+	log.Info("starting application", slog.Int("port", cfg.HTTPServer.Port), slog.Any("cfg", cfg))
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
-		panic("failed to connect: " + err.Error())
+		panic(err.Error())
 	}
 
 	a := app.New(log, conn, cfg.HTTPServer.Port)

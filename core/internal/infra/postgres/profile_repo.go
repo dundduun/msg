@@ -16,8 +16,8 @@ func NewProfileRepo(conn *pgx.Conn) *ProfileRepo {
 	return &ProfileRepo{conn: conn}
 }
 
-func (p *ProfileRepo) Profile(ctx context.Context, id int) (prof.Profile, error) {
-	const op = "postgres.ProfileRepo.Profile"
+func (p *ProfileRepo) ExtractProfile(ctx context.Context, id int) (prof.Profile, error) {
+	const op = "postgres.ProfileRepo.ExtractProfile"
 
 	row := p.conn.QueryRow(ctx, "select id, username, name from profile where id = $1", id)
 

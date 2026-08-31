@@ -11,16 +11,23 @@ import (
 var ErrNoProfile = errors.New("profile not found")
 
 type Repo interface {
+	ExtractProfile(ctx context.Context, id int) (Profile, error)
+}
+
+type Cache interface {
 	Profile(ctx context.Context, id int) (Profile, error)
 }
 
 type Service struct {
-	repo Repo
-	log  *slog.Logger
+	cache Cache
+	repo  Repo
+	log   *slog.Logger
 }
 
+// func NewService(cache Cache, repo Repo, log *slog.Logger) *Service {
 func NewService(repo Repo, log *slog.Logger) *Service {
 	return &Service{
+		//cache: cache,
 		repo: repo,
 		log:  log,
 	}
@@ -30,7 +37,7 @@ func (s *Service) GetProfile(ctx context.Context, id int) (Profile, error) {
 	const op = "profile.Service.GetProfile"
 	log := s.log.With(slog.String("op", op), slog.Int("id", id))
 
-	profile, err := s.repo.Profile(ctx, id)
+	profile, err := s.repo.ExtractProfile(ctx, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoProfile):
@@ -43,3 +50,15 @@ func (s *Service) GetProfile(ctx context.Context, id int) (Profile, error) {
 
 	return profile, nil
 }
+
+// мб не стоит сюда смотреть, а написать по-новой чтоб ничего не упустить
+//profile, err := s.cache.Profile(ctx, id)
+//if err == nil { // maybe switch
+//return profile ...
+//} else {
+//if err == ErrNoProfileCache {
+// give it to go further, but remember to write to cache a record
+//} else
+//500 error, we should to do something
+//}
+//}
