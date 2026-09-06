@@ -8,6 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (
@@ -37,7 +40,22 @@ func main() {
 	}
 
 	a := app.New(log, conn, cfg.HTTPServer.Port)
-	a.Start()
+	go func() {
+		a.Start()
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	<-stop
+
+	log.Info("stopping")
+
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	a.Stop(ctxTimeout)
+
+	log.Info("app gracefully stopped")
 }
 
 func setupLogger(env string) *slog.Logger {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	profile "github.com/dundduun/msg/core/internal/adapters/http"
 	"github.com/dundduun/msg/core/internal/infra/postgres"
@@ -13,29 +14,40 @@ import (
 )
 
 type App struct {
-	log            *slog.Logger
-	port           int
-	profileHandler *profile.ProfileHandler
+	log    *slog.Logger
+	conn   *pgx.Conn
+	server *http.Server
 }
 
 func New(log *slog.Logger, conn *pgx.Conn, port int) *App {
-	return &App{
-		log:  log,
-		port: port,
-		profileHandler: profile.NewProfileHandler(
-			prof.NewService(
-				postgres.NewProfileRepo(conn),
-				log,
-			),
+	profileHandler := profile.NewProfileHandler(
+		prof.NewService(
+			postgres.NewProfileRepo(conn),
+			log,
 		),
+	)
+
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Get("/profile/{id}", profileHandler.GetProfile)
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: r,
+	}
+
+	return &App{
+		log:    log,
+		conn:   conn,
+		server: server,
 	}
 }
 
 func (a *App) Start() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/profile/{id}", a.profileHandler.GetProfile)
+	_ = a.server.ListenAndServe()
+}
 
-	_ = http.ListenAndServe(fmt.Sprintf(":%d", a.port), r)
-	a.log.Info("server stopped")
+func (a *App) Stop(ctx context.Context) {
+	_ = a.server.Shutdown(ctx)
+	_ = a.conn.Close(context.Background())
 }
