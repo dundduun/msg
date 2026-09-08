@@ -6,6 +6,7 @@ import (
 	"github.com/dundduun/msg/core/internal/adapters/http/app"
 	"github.com/dundduun/msg/core/internal/config"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -39,7 +40,16 @@ func main() {
 		panic(err.Error())
 	}
 
-	a := app.New(log, conn, cfg.HTTPServer.Port)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.Cache.Host, cfg.Cache.Port),
+		Password: cfg.Cache.Password,
+		DB:       cfg.Cache.Name,
+	})
+	if err := rdb.Ping(context.Background()); err != nil {
+		panic("failed to set up cache: " + err.Err().Error())
+	}
+
+	a := app.New(log, rdb, conn, cfg.HTTPServer.Port)
 	go func() {
 		a.Start()
 	}()

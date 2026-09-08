@@ -14,22 +14,17 @@ type Repo interface {
 	ExtractProfile(ctx context.Context, id int) (Profile, error)
 }
 
-type Cache interface {
-	Profile(ctx context.Context, id int) (Profile, error)
-}
-
 type Service struct {
-	cache Cache
+	cache *Cache
 	repo  Repo
 	log   *slog.Logger
 }
 
-// func NewService(cache Cache, repo Repo, log *slog.Logger) *Service {
-func NewService(repo Repo, log *slog.Logger) *Service {
+func NewService(cache *Cache, repo Repo, log *slog.Logger) *Service {
 	return &Service{
-		//cache: cache,
-		repo: repo,
-		log:  log,
+		cache: cache,
+		repo:  repo,
+		log:   log,
 	}
 }
 
@@ -37,7 +32,15 @@ func (s *Service) GetProfile(ctx context.Context, id int) (Profile, error) {
 	const op = "profile.Service.GetProfile"
 	log := s.log.With(slog.String("op", op), slog.Int("id", id))
 
-	profile, err := s.repo.ExtractProfile(ctx, id)
+	profile, err := s.cache.GetProfile(ctx, id)
+	if err == nil {
+		return profile, nil
+	}
+	if !errors.Is(err, ErrCacheMiss) {
+		log.Error("failed to get profile from cache", logerr.Err(err))
+	}
+
+	profile, err = s.repo.ExtractProfile(ctx, id)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoProfile):

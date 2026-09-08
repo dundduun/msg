@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net/http"
 )
@@ -19,9 +20,12 @@ type App struct {
 	server *http.Server
 }
 
-func New(log *slog.Logger, conn *pgx.Conn, port int) *App {
+func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int) *App {
+	cache := prof.NewCache(rdb)
+
 	profileHandler := profile.NewProfileHandler(
 		prof.NewService(
+			cache,
 			postgres.NewProfileRepo(conn),
 			log,
 		),
