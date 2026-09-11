@@ -4,6 +4,7 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
 	"os"
+	"time"
 )
 
 func MustLoad() *Config {
@@ -45,10 +46,11 @@ type DB struct {
 }
 
 type Cache struct {
-	Host     string `env:"REDIS_HOST" yaml:"host" env-required:"true"`
-	Port     int    `env:"REDIS_PORT" yaml:"port" env-required:"true"`
-	Password string `env:"REDIS_PASSWORD" yaml:"password" env-required:"true"`
-	Name     int    `env:"REDIS_NAME" yaml:"name" env-required:"true"`
+	Host     string        `env:"REDIS_HOST" yaml:"host" env-required:"true"`
+	Port     int           `env:"REDIS_PORT" yaml:"port" env-required:"true"`
+	Password string        `env:"REDIS_PASSWORD" yaml:"password" env-required:"true"`
+	Name     int           `env:"REDIS_NAME" yaml:"name" env-required:"true"`
+	TTL      time.Duration `yaml:"ttl" env-required:"true"`
 }
 
 type HTTPServer struct {

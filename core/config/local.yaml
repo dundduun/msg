@@ -1,6 +1,8 @@
 env: "development"
 httpserver:
   port: 8080
+cache:
+  ttl: 10s
 
 #http_server:
 #  timeout: 4s

@@ -12,16 +12,18 @@ import (
 	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type App struct {
 	log    *slog.Logger
 	conn   *pgx.Conn
+	rdb    *redis.Client
 	server *http.Server
 }
 
-func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int) *App {
-	cache := prof.NewCache(rdb)
+func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, ttl time.Duration) *App {
+	cache := prof.NewCache(rdb, ttl)
 
 	profileHandler := profile.NewProfileHandler(
 		prof.NewService(
@@ -54,4 +56,5 @@ func (a *App) Start() {
 func (a *App) Stop(ctx context.Context) {
 	_ = a.server.Shutdown(ctx)
 	_ = a.conn.Close(context.Background())
+	_ = a.rdb.Close()
 }

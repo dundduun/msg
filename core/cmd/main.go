@@ -45,11 +45,11 @@ func main() {
 		Password: cfg.Cache.Password,
 		DB:       cfg.Cache.Name,
 	})
-	if err := rdb.Ping(context.Background()); err != nil {
-		panic("failed to set up cache: " + err.Err().Error())
+	if status := rdb.Ping(context.Background()); status.Err() != nil {
+		panic("failed to set up cache: " + status.Err().Error())
 	}
 
-	a := app.New(log, rdb, conn, cfg.HTTPServer.Port)
+	a := app.New(log, rdb, conn, cfg.HTTPServer.Port, cfg.Cache.TTL)
 	go func() {
 		a.Start()
 	}()
