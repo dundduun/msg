@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"time"
 )
@@ -22,7 +23,7 @@ func NewCache(rdb *redis.Client, ttl time.Duration) *Cache {
 	return &Cache{rdb: rdb, ttl: ttl}
 }
 
-func (c *Cache) GetProfile(ctx context.Context, id int) (Profile, error) {
+func (c *Cache) GetProfile(ctx context.Context, id uuid.UUID) (Profile, error) {
 	const op = "profile.Cache.GetProfile"
 
 	profileJSON, err := c.rdb.Get(ctx, PrefixedID(id)).Result()
@@ -44,14 +45,19 @@ func (c *Cache) GetProfile(ctx context.Context, id int) (Profile, error) {
 func (c *Cache) SetProfile(ctx context.Context, profile Profile) error {
 	const op = "profile.Cache.SetProfile"
 
-	_, err := c.rdb.Set(ctx, PrefixedID(profile.ID), profile, c.ttl).Result()
+	profileJSON, err := json.Marshal(profile)
 	if err != nil {
-		return fmt.Errorf("%s:%w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = c.rdb.Set(ctx, PrefixedID(profile.ID), profileJSON, c.ttl).Result()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
 }
 
-func PrefixedID(id int) string {
-	return fmt.Sprintf("%s:%d", prefix, id)
+func PrefixedID(id uuid.UUID) string {
+	return fmt.Sprintf("%s:%v", prefix, id)
 }

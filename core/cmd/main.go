@@ -34,7 +34,6 @@ func main() {
 		cfg.DB.Name,
 	)
 
-	log.Info("starting application", slog.Int("port", cfg.HTTPServer.Port), slog.Any("cfg", cfg))
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
 		panic(err.Error())
@@ -57,6 +56,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
+	log.Info("core app started", slog.Int("port", cfg.HTTPServer.Port), slog.Any("cfg", cfg))
 	<-stop
 
 	log.Info("stopping")
