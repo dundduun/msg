@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	httpprofile "github.com/dundduun/msg/core/internal/adapters/http"
+	handlers "github.com/dundduun/msg/core/internal/adapters/http"
 	"github.com/dundduun/msg/core/internal/infra/postgres"
 	"github.com/dundduun/msg/core/internal/profile"
 	"github.com/go-chi/chi/v5"
@@ -25,18 +25,20 @@ type App struct {
 func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, ttl time.Duration) *App {
 	cache := profile.NewCache(rdb, ttl)
 
-	profileHandler := httpprofile.NewProfileHandler(
+	profileHandler := handlers.NewProfileHandler(
 		profile.NewService(
 			cache,
 			postgres.NewProfileRepo(conn),
 			log,
 		),
 	)
+	wsHandler := handlers.NewChatHandler(log)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Get("/profile/{id}", profileHandler.GetProfile)
 	r.Post("/profile", profileHandler.CreateProfile)
+	r.Get("/ws", wsHandler.Connect)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
