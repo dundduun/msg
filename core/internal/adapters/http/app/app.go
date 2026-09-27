@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	handlers "github.com/dundduun/msg/core/internal/adapters/http"
+	"github.com/dundduun/msg/core/internal/adapters/http/ws"
 	"github.com/dundduun/msg/core/internal/infra/postgres"
 	"github.com/dundduun/msg/core/internal/profile"
 	"github.com/go-chi/chi/v5"
@@ -32,7 +33,7 @@ func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, ttl time
 			log,
 		),
 	)
-	wsHandler := handlers.NewWSHandler(log)
+	wsHandler := ws.NewHandler(log)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
