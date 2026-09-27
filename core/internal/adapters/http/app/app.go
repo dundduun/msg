@@ -32,7 +32,7 @@ func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, ttl time
 			log,
 		),
 	)
-	wsHandler := handlers.NewChatHandler(log)
+	wsHandler := handlers.NewWSHandler(log)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
