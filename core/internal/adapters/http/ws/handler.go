@@ -37,11 +37,14 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Info("connection open")
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := &Client{
-		conn: conn,
+		room: "lobby",
 		send: make(chan Envelope, 256),
+		conn: conn,
 		hub:  h.hub,
 		log:  h.log,
 	}

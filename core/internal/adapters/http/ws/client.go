@@ -14,13 +14,16 @@ const (
 )
 
 type Envelope struct {
-	Type string `json:"type"` // mandatory
-	Text string `json:"text"`
+	Type   string `json:"type"` // mandatory
+	Text   string `json:"text"`
+	Room   string `json:"room"`
+	sender *Client
 }
 
 type Client struct {
-	conn *websocket.Conn
+	room string
 	send chan Envelope
+	conn *websocket.Conn
 	hub  *Hub
 	log  *slog.Logger
 }
@@ -50,7 +53,15 @@ func (c *Client) readPump() {
 			break
 		}
 
-		c.hub.broadcast <- env
+		switch env.Type {
+		case "join":
+			c.hub.switchRooms(c, env.Room)
+		case "leave":
+			c.hub.switchRooms(c, "lobby")
+		case "broadcast":
+			env.sender = c
+			c.hub.broadcast <- env
+		}
 	}
 }
 
