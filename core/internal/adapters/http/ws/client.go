@@ -17,7 +17,13 @@ type Envelope struct {
 	Type   string `json:"type"` // mandatory
 	Text   string `json:"text"`
 	Room   string `json:"room"`
+	List   []Room `json:"list"`
 	sender *Client
+}
+
+type Room struct {
+	Name    string `json:"name"`
+	Members int    `json:"members"`
 }
 
 type Client struct {
@@ -58,7 +64,15 @@ func (c *Client) readPump() {
 			c.hub.switchRooms(c, env.Room)
 		case "leave":
 			c.hub.switchRooms(c, "lobby")
-		case "broadcast":
+		case "list":
+			rooms := c.hub.countRooms()
+			env = Envelope{
+				Type:   "list_response",
+				List:   rooms,
+				sender: c,
+			}
+			c.hub.broadcast <- env
+		case "broadcast": // rename response
 			env.sender = c
 			c.hub.broadcast <- env
 		}

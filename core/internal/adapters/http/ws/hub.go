@@ -64,3 +64,13 @@ func (h *Hub) switchRooms(c *Client, room string) {
 	h.rooms[room][c] = true
 	c.room = room
 }
+
+func (h *Hub) countRooms() []Room {
+	var rooms []Room
+
+	for name, room := range h.rooms {
+		rooms = append(rooms, Room{name, len(room)})
+	}
+
+	return rooms
+}

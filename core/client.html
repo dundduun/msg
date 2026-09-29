@@ -1,0 +1,20 @@
+<ul id="log"></ul>
+<label for="text"></label><input id="text" placeholder="сообщение" />
+<button id="send" disabled>отправить</button>
+
+<script>
+    const socket = new WebSocket("ws://localhost:8080/ws");
+    const log = document.getElementById("log");
+
+    socket.onopen = () => { document.getElementById("send").disabled = false; };
+    socket.onmessage = (e) => {
+        const item = document.createElement("li");
+        item.textContent = "эхо: " + e.data;
+        log.appendChild(item);
+    };
+    socket.onclose = (event) => { document.getElementById("send").disabled = true; console.log("closed: ", event)};
+
+    document.getElementById("send").onclick = () => {
+        socket.send(document.getElementById("text").value);
+    };
+</script>
