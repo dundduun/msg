@@ -68,7 +68,7 @@ func (a *Auth) Login(ctx context.Context, email, password string) (string, error
 
 	token, err := jwt.CreateToken(user, a.tokenTTL, a.secret)
 	if err != nil {
-		logger.Error("failed to create token", zap.Error(err))
+		logger.Error("failed to create ticket", zap.Error(err))
 
 		return "", werr.WrapError(op, err)
 	}

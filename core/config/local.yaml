@@ -2,7 +2,8 @@ env: "development"
 httpserver:
   port: 8080
 cache:
-  ttl: 10m
+  profile_ttl: 10m
+  ticket_ttl: 30s
 
 #http_server:
 #  timeout: 4s

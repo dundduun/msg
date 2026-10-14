@@ -48,7 +48,7 @@ func main() {
 		panic("failed to set up cache: " + status.Err().Error())
 	}
 
-	a := app.New(log, rdb, conn, cfg.HTTPServer.Port, cfg.Cache.TTL)
+	a := app.New(log, rdb, conn, cfg.HTTPServer.Port, cfg.Cache.ProfileTTL, cfg.Cache.TicketTTL, []byte(cfg.Secret))
 	go func() {
 		a.Start()
 	}()

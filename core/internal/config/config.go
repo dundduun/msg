@@ -32,6 +32,7 @@ func MustLoad() *Config {
 
 type Config struct {
 	Env        string     `env:"ENV" yaml:"env" env-default:"development"`
+	Secret     string     `env:"JWT_SECRET" env-required:"true"`
 	DB         DB         `yaml:"db"`
 	Cache      Cache      `yaml:"cache"`
 	HTTPServer HTTPServer `yaml:"httpserver"`
@@ -46,11 +47,12 @@ type DB struct {
 }
 
 type Cache struct {
-	Host     string        `env:"REDIS_HOST" yaml:"host" env-required:"true"`
-	Port     int           `env:"REDIS_PORT" yaml:"port" env-required:"true"`
-	Password string        `env:"REDIS_PASSWORD" yaml:"password" env-required:"true"`
-	Name     int           `env:"REDIS_NAME" yaml:"name" env-required:"true"`
-	TTL      time.Duration `yaml:"ttl" env-required:"true"`
+	Host       string        `env:"REDIS_HOST" yaml:"host" env-required:"true"`
+	Port       int           `env:"REDIS_PORT" yaml:"port" env-required:"true"`
+	Password   string        `env:"REDIS_PASSWORD" yaml:"password" env-required:"true"`
+	Name       int           `env:"REDIS_NAME" yaml:"name" env-required:"true"`
+	ProfileTTL time.Duration `yaml:"profile_ttl" env-required:"true"`
+	TicketTTL  time.Duration `yaml:"ticket_ttl" env-required:"true"`
 }
 
 type HTTPServer struct {

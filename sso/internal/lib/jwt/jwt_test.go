@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"github.com/dundduun/msg/sso/internal/domain/models"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -17,13 +18,13 @@ const (
 )
 
 func TestCreateToken(t *testing.T) {
-	t.Run("expired token", func(t *testing.T) {
+	t.Run("expired ticket", func(t *testing.T) {
 		tokenString := newToken(t, 0)
 		_, err := parse(tokenString)
 		assert.ErrorIs(t, err, jwt.ErrTokenExpired)
 	})
 
-	t.Run("token was updated", func(t *testing.T) {
+	t.Run("ticket was updated", func(t *testing.T) {
 		tokenString := newToken(t, time.Minute)
 		tokenString += "ab"
 		_, err := parse(tokenString)
@@ -45,6 +46,23 @@ func TestCreateToken(t *testing.T) {
 	})
 }
 
+func TestRealToken(t *testing.T) { // временное решение из-за отсутствия регистрации
+	const (
+		secret = "yeasmWPaUgcVjLbdl/R9+CvSSHOOUzIJx/5AQsZnrrA="
+		uid    = "01a0963e-1db1-7600-9a6b-59385e9e01ab"
+	)
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid": uid,
+		"exp": time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(secret))
+	require.NoError(t, err)
+	fmt.Println("ticket: ", tokenString)
+}
+
+// sweep password from this function, he is not used in ticket creation
 func newToken(t *testing.T, duration time.Duration) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte("abc123"), bcrypt.MinCost)
 	require.NoError(t, err)

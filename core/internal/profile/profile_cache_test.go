@@ -26,10 +26,11 @@ func TestCacheProfile(t *testing.T) {
 		profBytes, err := json.Marshal(prof)
 		require.NoError(t, err)
 
-		mock.ExpectGet(profile.PrefixedID(prof.ID)).SetVal(string(profBytes))
+		mock.ExpectGet(profile.PrefixId(prof.ID)).SetVal(string(profBytes))
 
-		cache := profile.NewCache(db, 0)
-		gotProfile, err := cache.GetProfile(context.Background(), prof.ID)
+		cache, err := profile.NewCache(db, 0)
+		require.NoError(t, err)
+		gotProfile, err := cache.Get(context.Background(), prof.ID)
 		require.NoError(t, err)
 
 		assert.Equal(t, prof, gotProfile)
@@ -45,10 +46,11 @@ func TestCacheProfile(t *testing.T) {
 			Name:     "2",
 		}
 
-		mock.ExpectSet(profile.PrefixedID(prof.ID), prof, ttl).SetVal("ok")
+		mock.ExpectSet(profile.PrefixId(prof.ID), prof, ttl).SetVal("ok")
 
-		cache := profile.NewCache(db, ttl)
-		err := cache.SetProfile(context.Background(), prof)
+		cache, err := profile.NewCache(db, ttl)
+		require.NoError(t, err)
+		err = cache.Set(context.Background(), prof)
 		require.NoError(t, err)
 
 		assert.NoError(t, mock.ExpectationsWereMet())
