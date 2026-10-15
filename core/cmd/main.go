@@ -56,7 +56,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
-	log.Info("core app started", slog.Int("port", cfg.HTTPServer.Port), slog.Any("cfg", cfg))
+	log.Info("core app started", slog.Int("port", cfg.HTTPServer.Port), slog.String("env", cfg.Env))
 	<-stop
 
 	log.Info("stopping")
