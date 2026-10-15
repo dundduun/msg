@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/render"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 const prefix = "Bearer "
@@ -22,7 +23,7 @@ func WithClaims(ctx context.Context) (jwt.Claims, bool) {
 
 type Middleware struct {
 	log     *slog.Logger
-	service jwt.Service
+	service jwt.Service // to sweep concrete implementation into TokenService.Verify
 }
 
 func NewMiddleware(log *slog.Logger, service jwt.Service) *Middleware {
@@ -31,18 +32,18 @@ func NewMiddleware(log *slog.Logger, service jwt.Service) *Middleware {
 
 func (a *Middleware) Ensure(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tokenString := r.URL.Query().Get("ticket")
-		if tokenString == "" {
-			problem := "ticket is expected"
+		bearer := r.Header.Get("Authorization")
+		tokenStr, found := strings.CutPrefix(bearer, prefix)
+		if !found || tokenStr == "" {
 			render.Status(r, http.StatusUnauthorized)
-			render.JSON(w, r, response.Error(problem))
+			render.JSON(w, r, response.Error("bearer token expected"))
 			return
 		}
 
-		claims, err := a.service.VerifyToken(tokenString)
+		claims, err := a.service.VerifyToken(tokenStr)
 		if err != nil {
-			problem := "invalid ticket"
-			a.log.Debug("failed to authorize ticket", slog.String("problem", problem))
+			problem := "invalid token"
+			a.log.Debug("failed to authorize token", slog.String("problem", problem))
 			render.Status(r, http.StatusUnauthorized)
 			render.JSON(w, r, response.Error(problem))
 			return
@@ -52,3 +53,27 @@ func (a *Middleware) Ensure(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
+
+//func (a *Middleware) EnsureTicket(next http.HandlerFunc) http.HandlerFunc {
+//	return func(w http.ResponseWriter, r *http.Request) {
+//		tokenString := r.URL.Query().Get("ticket")
+//		if tokenString == "" {
+//			problem := "ticket is expected"
+//			render.Status(r, http.StatusUnauthorized)
+//			render.JSON(w, r, response.Error(problem))
+//			return
+//		}
+//
+//		claims, err := a.service.VerifyToken(tokenString)
+//		if err != nil {
+//			problem := "invalid ticket"
+//			a.log.Debug("failed to authorize ticket", slog.String("problem", problem))
+//			render.Status(r, http.StatusUnauthorized)
+//			render.JSON(w, r, response.Error(problem))
+//			return
+//		}
+//
+//		ctx := context.WithValue(r.Context(), claimsKey, claims)
+//		next.ServeHTTP(w, r.WithContext(ctx))
+//	}
+//}
