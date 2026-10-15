@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const prefix = "ws:ticket:"
+const ticketPrefix = "ws:ticket:"
 
 var (
 	ErrNilRDB = errors.New("rdb should not be nil")
@@ -66,5 +66,5 @@ func (t *TicketCache) Set(ctx context.Context, ticket string, uid uuid.UUID) err
 }
 
 func prefixTicket(ticket string) string {
-	return prefix + ticket
+	return ticketPrefix + ticket
 }

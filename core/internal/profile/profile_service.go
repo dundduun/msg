@@ -12,6 +12,7 @@ import (
 var (
 	ErrNoProfile     = errors.New("profile not found")
 	ErrUsernameTaken = errors.New("username is taken")
+	ErrCacheMiss     = errors.New("profile not found in cache")
 )
 
 type Repo interface {
@@ -19,13 +20,18 @@ type Repo interface {
 	InsertProfile(ctx context.Context, prof Profile) error
 }
 
+type Cache interface {
+	Get(ctx context.Context, id uuid.UUID) (Profile, error)
+	Set(ctx context.Context, profile Profile) error
+}
+
 type Service struct {
-	cache *Cache
+	cache Cache
 	repo  Repo
 	log   *slog.Logger
 }
 
-func NewService(cache *Cache, repo Repo, log *slog.Logger) *Service {
+func NewService(cache Cache, repo Repo, log *slog.Logger) *Service {
 	return &Service{
 		cache: cache,
 		repo:  repo,
@@ -33,11 +39,11 @@ func NewService(cache *Cache, repo Repo, log *slog.Logger) *Service {
 	}
 }
 
-func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (Profile, error) {
-	const op = "profile.Service.GetProfile"
-	log := s.log.With(slog.String("op", op), slog.Any("id", id))
+func (s *Service) GetProfile(ctx context.Context, uid uuid.UUID) (Profile, error) {
+	const op = "profile.Service.Check"
+	log := s.log.With(slog.String("op", op), slog.String("uid", uid.String()))
 
-	profile, err := s.cache.GetProfile(ctx, id)
+	profile, err := s.cache.Get(ctx, uid)
 	if err == nil {
 		log.Info("cache hit!")
 		return profile, nil
@@ -47,7 +53,7 @@ func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (Profile, error)
 	}
 
 	log.Info("cache miss")
-	profile, err = s.repo.ExtractProfile(ctx, id)
+	profile, err = s.repo.ExtractProfile(ctx, uid)
 	if err != nil {
 		if !errors.Is(err, ErrNoProfile) {
 			log.Error("failed to get profile", logerr.Err(err))
@@ -55,7 +61,7 @@ func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (Profile, error)
 		return Profile{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	err = s.cache.SetProfile(ctx, profile)
+	err = s.cache.Set(ctx, profile)
 	if err != nil {
 		log.Error("failed to set profile to cache", logerr.Err(err))
 	} else {
@@ -67,13 +73,13 @@ func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (Profile, error)
 
 func (s *Service) CreateProfile(ctx context.Context, username string, name string) error {
 	const op = "profile.Service.CreateProfile"
-	id, _ := uuid.NewV7()
+	uid, _ := uuid.NewV7()
 	profile := Profile{
-		ID:       id,
+		ID:       uid,
 		Username: username,
 		Name:     name,
 	}
-	log := s.log.With(slog.String("op", op), slog.Any("id", id))
+	log := s.log.With(slog.String("op", op), slog.String("uid", uid.String()))
 
 	err := s.repo.InsertProfile(ctx, profile)
 	if err != nil {

@@ -1,8 +1,9 @@
-package profile_test
+package redis_test
 
 import (
 	"context"
 	"encoding/json"
+	"github.com/dundduun/msg/core/internal/infra/redis"
 	"github.com/dundduun/msg/core/internal/profile"
 	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
@@ -26,9 +27,9 @@ func TestCacheProfile(t *testing.T) {
 		profBytes, err := json.Marshal(prof)
 		require.NoError(t, err)
 
-		mock.ExpectGet(profile.PrefixId(prof.ID)).SetVal(string(profBytes))
+		mock.ExpectGet(redis.PrefixId(prof.ID)).SetVal(string(profBytes))
 
-		cache, err := profile.NewCache(db, 0)
+		cache, err := redis.NewCache(db, 0)
 		require.NoError(t, err)
 		gotProfile, err := cache.Get(context.Background(), prof.ID)
 		require.NoError(t, err)
@@ -46,9 +47,9 @@ func TestCacheProfile(t *testing.T) {
 			Name:     "2",
 		}
 
-		mock.ExpectSet(profile.PrefixId(prof.ID), prof, ttl).SetVal("ok")
+		mock.ExpectSet(redis.PrefixId(prof.ID), prof, ttl).SetVal("ok")
 
-		cache, err := profile.NewCache(db, ttl)
+		cache, err := redis.NewCache(db, ttl)
 		require.NoError(t, err)
 		err = cache.Set(context.Background(), prof)
 		require.NoError(t, err)

@@ -1,3 +1,3 @@
-package profile
+package redis
 
 var PrefixId = prefixID
