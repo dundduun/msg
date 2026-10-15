@@ -2,6 +2,7 @@ package ws
 
 import (
 	"github.com/dundduun/msg/core/pkg/logerr"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"log/slog"
 	"time"
@@ -14,24 +15,27 @@ const (
 )
 
 type Envelope struct {
-	Type   string `json:"type"` // mandatory
-	Text   string `json:"text"`
-	Room   string `json:"room"`
-	List   []Room `json:"list"`
+	Type   string    `json:"type"`
+	Text   string    `json:"text,omitempty"`
+	UserID uuid.UUID `json:"userID,omitempty"`
+	Group  string    `json:"group,omitempty"`
+	List   []Group   `json:"list,omitempty"`
+	To     uuid.UUID `json:"to,omitempty"`
 	sender *Client
 }
 
-type Room struct {
+type Group struct {
 	Name    string `json:"name"`
 	Members int    `json:"members"`
 }
 
 type Client struct {
-	room string
-	send chan Envelope
-	conn *websocket.Conn
-	hub  *Hub
-	log  *slog.Logger
+	id    uuid.UUID
+	group string
+	send  chan Envelope
+	conn  *websocket.Conn
+	hub   *Hub
+	log   *slog.Logger
 }
 
 func (c *Client) readPump() {
@@ -61,17 +65,20 @@ func (c *Client) readPump() {
 
 		switch env.Type {
 		case "join":
-			c.hub.switchRooms(c, env.Room)
+			c.hub.switchGroups(c, env.Group)
 		case "leave":
-			c.hub.switchRooms(c, "lobby")
+			c.hub.switchGroups(c, "lobby")
 		case "list":
-			rooms := c.hub.countRooms()
+			groups := c.hub.countGroups()
 			env = Envelope{
 				Type:   "list_response",
-				List:   rooms,
+				List:   groups,
 				sender: c,
 			}
 			c.hub.broadcast <- env
+		case "direct":
+			env.sender = c
+			c.hub.direct <- env
 		case "broadcast": // rename response
 			env.sender = c
 			c.hub.broadcast <- env

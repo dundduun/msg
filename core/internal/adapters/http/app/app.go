@@ -29,7 +29,7 @@ type App struct {
 }
 
 func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, profileTTL, ticketTTL time.Duration, secret []byte) *App {
-	profileCache, err := profile.NewCache(rdb, profileTTL)
+	profileCache, err := cache.NewCache(rdb, profileTTL)
 	if err != nil {
 		log.Error("failed to create profile cache", logerr.Err(err))
 		panic("failed to create profile cache: " + err.Error())

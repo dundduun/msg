@@ -1,15 +1,21 @@
 package ws
 
+import "github.com/google/uuid"
+
 type Hub struct {
-	rooms      map[string]map[*Client]bool
+	groups     map[string]map[*Client]bool
+	users      map[uuid.UUID]*Client
+	direct     chan Envelope
+	broadcast  chan Envelope
 	register   chan *Client
 	unregister chan *Client
-	broadcast  chan Envelope
 }
 
 func newHub() *Hub {
 	hub := Hub{
-		rooms:      make(map[string]map[*Client]bool),
+		groups:     make(map[string]map[*Client]bool),
+		users:      make(map[uuid.UUID]*Client),
+		direct:     make(chan Envelope),
 		broadcast:  make(chan Envelope),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -23,23 +29,45 @@ func (h *Hub) run() {
 	for {
 		select {
 		case c := <-h.register:
-			if h.rooms[c.room] == nil {
-				h.rooms[c.room] = make(map[*Client]bool)
+			if h.groups[c.group] == nil {
+				h.groups[c.group] = make(map[*Client]bool)
 			}
-			h.rooms[c.room][c] = true
+			h.groups[c.group][c] = true
+			h.broadcast <- Envelope{
+				Type:   "system.online",
+				UserID: c.id,
+			}
+			h.users[c.id] = c
 
 		case c := <-h.unregister:
-			if h.rooms[c.room] != nil {
-				delete(h.rooms[c.room], c)
-				if len(h.rooms[c.room]) == 0 {
-					delete(h.rooms, c.room)
+			if h.groups[c.group] != nil {
+				delete(h.groups[c.group], c)
+				if len(h.groups[c.group]) == 0 {
+					delete(h.groups, c.group)
 				}
-				c.room = "lobby"
+				c.group = "lobby"
 				close(c.send)
+			}
+			h.broadcast <- Envelope{
+				Type:   "system.offline",
+				UserID: c.id,
+			}
+			delete(h.users, c.id)
+
+		case env := <-h.direct:
+			target, online := h.users[env.To]
+			if !online {
+				//h.queueOffline(env)
+				continue
+			}
+			select {
+			case target.send <- env:
+			default:
+				close(target.send)
 			}
 
 		case env := <-h.broadcast:
-			for c := range h.rooms[env.sender.room] {
+			for c := range h.groups[env.sender.group] {
 				select {
 				case c.send <- env:
 				default:
@@ -50,27 +78,29 @@ func (h *Hub) run() {
 	}
 }
 
-func (h *Hub) switchRooms(c *Client, room string) {
-	if h.rooms[c.room] != nil {
-		delete(h.rooms[c.room], c)
-		if len(h.rooms[c.room]) == 0 {
-			delete(h.rooms, c.room)
+//func (h *Hub) queueOffline(Envelope) {} // implement
+
+func (h *Hub) switchGroups(c *Client, group string) {
+	if h.groups[c.group] != nil {
+		delete(h.groups[c.group], c)
+		if len(h.groups[c.group]) == 0 {
+			delete(h.groups, c.group)
 		}
 	}
 
-	if h.rooms[room] == nil {
-		h.rooms[room] = make(map[*Client]bool)
+	if h.groups[group] == nil {
+		h.groups[group] = make(map[*Client]bool)
 	}
-	h.rooms[room][c] = true
-	c.room = room
+	h.groups[group][c] = true
+	c.group = group
 }
 
-func (h *Hub) countRooms() []Room {
-	var rooms []Room
+func (h *Hub) countGroups() []Group {
+	var groups []Group
 
-	for name, room := range h.rooms {
-		rooms = append(rooms, Room{name, len(room)})
+	for name, group := range h.groups {
+		groups = append(groups, Group{name, len(group)})
 	}
 
-	return rooms
+	return groups
 }
