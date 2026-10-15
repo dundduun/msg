@@ -33,8 +33,8 @@ func NewService(cache Cache, log *slog.Logger) *Service {
 	}
 }
 
-func (s *Service) Get(ctx context.Context, ticket string) (uuid.UUID, error) {
-	const op = "ticket.Service.Get"
+func (s *Service) Check(ctx context.Context, ticket string) (uuid.UUID, error) {
+	const op = "ticket.Service.Check"
 	log := s.log.With(slog.String("op", op))
 
 	if ticket == "" {

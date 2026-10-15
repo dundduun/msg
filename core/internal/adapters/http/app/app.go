@@ -47,16 +47,17 @@ func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, profileT
 			log,
 		),
 	)
-	ticketHandler := handlers.NewTicketHandler(log, ticket.NewService(ticketCache, log))
+	ticketService := ticket.NewService(ticketCache, log)
+	ticketHandler := handlers.NewTicketHandler(log, ticketService)
 	wsHandler := ws.NewHandler(log)
-	authMiddleware := auth.NewMiddleware(log, jwt.NewService(secret))
+	authMiddleware := auth.NewMiddleware(log, jwt.NewService(secret), ticketService)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Get("/profile/{id}", profileHandler.GetProfile)
 	r.Post("/profile", profileHandler.CreateProfile)
-	r.Get("/ws", authMiddleware.Ensure(wsHandler.Connect))
-	r.Post("/ws/ticket", authMiddleware.Ensure(ticketHandler.GetTicket))
+	r.Get("/ws", authMiddleware.EnsureTicket(wsHandler.Connect))
+	r.Post("/ws/ticket", authMiddleware.EnsureToken(ticketHandler.GetTicket))
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

@@ -2,9 +2,13 @@ package auth
 
 import (
 	"context"
+	"errors"
+	ticketp "github.com/dundduun/msg/core/internal/ticket"
 	"github.com/dundduun/msg/core/pkg/jwt"
+	"github.com/dundduun/msg/core/pkg/logerr"
 	"github.com/dundduun/msg/core/pkg/response"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -22,16 +26,24 @@ func WithClaims(ctx context.Context) (jwt.Claims, bool) {
 }
 
 type Middleware struct {
-	log     *slog.Logger
-	service jwt.Service // to sweep concrete implementation into TokenService.Verify
+	log           *slog.Logger
+	tokenService  jwt.Service // to sweep concrete implementation into TokenService.Verify
+	ticketService TicketService
 }
 
-func NewMiddleware(log *slog.Logger, service jwt.Service) *Middleware {
-	return &Middleware{log: log, service: service}
+type TicketService interface {
+	Check(ctx context.Context, ticket string) (uuid.UUID, error)
 }
 
-func (a *Middleware) Ensure(next http.HandlerFunc) http.HandlerFunc {
+func NewMiddleware(log *slog.Logger, tokenService jwt.Service, ticketService TicketService) *Middleware {
+	return &Middleware{log: log, tokenService: tokenService, ticketService: ticketService}
+}
+
+func (m *Middleware) EnsureToken(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		const op = "auth.Middleware.EnsureToken"
+		log := m.log.With(slog.String("op", op))
+
 		bearer := r.Header.Get("Authorization")
 		tokenStr, found := strings.CutPrefix(bearer, prefix)
 		if !found || tokenStr == "" {
@@ -40,10 +52,10 @@ func (a *Middleware) Ensure(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		claims, err := a.service.VerifyToken(tokenStr)
+		claims, err := m.tokenService.VerifyToken(tokenStr)
 		if err != nil {
 			problem := "invalid token"
-			a.log.Debug("failed to authorize token", slog.String("problem", problem))
+			log.Debug("failed to authorize token", slog.String("problem", problem))
 			render.Status(r, http.StatusUnauthorized)
 			render.JSON(w, r, response.Error(problem))
 			return
@@ -54,26 +66,36 @@ func (a *Middleware) Ensure(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-//func (a *Middleware) EnsureTicket(next http.HandlerFunc) http.HandlerFunc {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		tokenString := r.URL.Query().Get("ticket")
-//		if tokenString == "" {
-//			problem := "ticket is expected"
-//			render.Status(r, http.StatusUnauthorized)
-//			render.JSON(w, r, response.Error(problem))
-//			return
-//		}
-//
-//		claims, err := a.service.VerifyToken(tokenString)
-//		if err != nil {
-//			problem := "invalid ticket"
-//			a.log.Debug("failed to authorize ticket", slog.String("problem", problem))
-//			render.Status(r, http.StatusUnauthorized)
-//			render.JSON(w, r, response.Error(problem))
-//			return
-//		}
-//
-//		ctx := context.WithValue(r.Context(), claimsKey, claims)
-//		next.ServeHTTP(w, r.WithContext(ctx))
-//	}
-//}
+func (m *Middleware) EnsureTicket(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const op = "auth.Middleware.EnsureTicket"
+		log := m.log.With(slog.String("op", op))
+
+		ticket := r.URL.Query().Get("ticket")
+		if ticket == "" {
+			problem := "ticket is expected"
+			log.Debug(problem)
+			render.Status(r, http.StatusUnauthorized)
+			render.JSON(w, r, response.Error(problem))
+			return
+		}
+
+		uid, err := m.ticketService.Check(r.Context(), ticket)
+		if err != nil {
+			if errors.Is(err, ticketp.ErrTicketNotFound) {
+				log.Warn("ticket not found", slog.String("ticket", ticket))
+				render.Status(r, http.StatusUnauthorized)
+				render.JSON(w, r, response.Error(ticketp.ErrTicketNotFound.Error()))
+				return
+			}
+			log.Error("failed to check ticket", logerr.Err(err))
+			render.Status(r, http.StatusUnauthorized)
+			render.JSON(w, r, response.Error("failed to check ticket"))
+			return
+		}
+		claims := jwt.Claims{UID: uid}
+
+		ctx := context.WithValue(r.Context(), claimsKey, claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
