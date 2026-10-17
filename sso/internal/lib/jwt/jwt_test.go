@@ -49,17 +49,20 @@ func TestCreateToken(t *testing.T) {
 func TestRealToken(t *testing.T) { // временное решение из-за отсутствия регистрации
 	const (
 		secret = "yeasmWPaUgcVjLbdl/R9+CvSSHOOUzIJx/5AQsZnrrA="
-		uid    = "01a0963e-1db1-7600-9a6b-59385e9e01ab"
+		//uid    = "01a0913c-38fe-71a0-bcb3-ec13b703b992"
+		//uid = "01a0963e-1db1-7600-9a6b-59385e9e01ab"
+		//uid = "01a09641-7691-7105-aac0-d3307ecd517e"
+		uid = "01a09648-da94-72b3-893d-c20f143466dd"
 	)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": uid,
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
+		"exp": time.Now().Add(time.Hour * 24 * 365).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(secret))
 	require.NoError(t, err)
-	fmt.Println("ticket: ", tokenString)
+	fmt.Println("token: ", tokenString)
 }
 
 // sweep password from this function, he is not used in ticket creation

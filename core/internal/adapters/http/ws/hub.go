@@ -1,8 +1,12 @@
 package ws
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"log/slog"
+)
 
 type Hub struct {
+	log        *slog.Logger
 	groups     map[string]map[*Client]bool
 	users      map[uuid.UUID]*Client
 	direct     chan Envelope
@@ -11,8 +15,9 @@ type Hub struct {
 	unregister chan *Client
 }
 
-func newHub() *Hub {
+func newHub(log *slog.Logger) *Hub {
 	hub := Hub{
+		log:        log,
 		groups:     make(map[string]map[*Client]bool),
 		users:      make(map[uuid.UUID]*Client),
 		direct:     make(chan Envelope),
@@ -26,20 +31,29 @@ func newHub() *Hub {
 }
 
 func (h *Hub) run() {
+	const op = "ws.Hub.run"
+	log := h.log.With(slog.String("op", op))
+
+	log.Debug("hub is running")
+
 	for {
+		log.Debug("for loop start")
+
 		select {
 		case c := <-h.register:
+			log.Debug("reg start")
 			if h.groups[c.group] == nil {
 				h.groups[c.group] = make(map[*Client]bool)
 			}
 			h.groups[c.group][c] = true
-			h.broadcast <- Envelope{
+			h.broadcastMessage(Envelope{
 				Type:   "system.online",
-				UserID: c.id,
-			}
-			h.users[c.id] = c
-
+				UserID: c.profile.ID,
+				sender: c,
+			})
+			h.users[c.profile.ID] = c
 		case c := <-h.unregister:
+			log.Debug("start")
 			if h.groups[c.group] != nil {
 				delete(h.groups[c.group], c)
 				if len(h.groups[c.group]) == 0 {
@@ -48,13 +62,17 @@ func (h *Hub) run() {
 				c.group = "lobby"
 				close(c.send)
 			}
-			h.broadcast <- Envelope{
+
+			h.broadcastMessage(Envelope{
 				Type:   "system.offline",
-				UserID: c.id,
-			}
-			delete(h.users, c.id)
+				UserID: c.profile.ID,
+				sender: c,
+			})
+			delete(h.users, c.profile.ID)
+			log.Debug("end")
 
 		case env := <-h.direct:
+			log.Debug("start")
 			target, online := h.users[env.To]
 			if !online {
 				//h.queueOffline(env)
@@ -65,20 +83,29 @@ func (h *Hub) run() {
 			default:
 				close(target.send)
 			}
+			log.Debug("end")
 
 		case env := <-h.broadcast:
-			for c := range h.groups[env.sender.group] {
-				select {
-				case c.send <- env:
-				default:
-					close(c.send)
-				}
-			}
+			h.broadcastMessage(env)
 		}
 	}
 }
 
 //func (h *Hub) queueOffline(Envelope) {} // implement
+
+func (h *Hub) broadcastMessage(env Envelope) {
+	const op = "ws.Hub.broadcastMessage"
+	log := h.log.With(slog.String("op", op))
+
+	log.Debug("broadcast case")
+	for c := range h.groups[env.sender.group] {
+		select {
+		case c.send <- env:
+		default:
+			close(c.send)
+		}
+	}
+}
 
 func (h *Hub) switchGroups(c *Client, group string) {
 	if h.groups[c.group] != nil {
@@ -95,7 +122,7 @@ func (h *Hub) switchGroups(c *Client, group string) {
 	c.group = group
 }
 
-func (h *Hub) countGroups() []Group {
+func (h *Hub) listGroups() []Group {
 	var groups []Group
 
 	for name, group := range h.groups {
@@ -103,4 +130,14 @@ func (h *Hub) countGroups() []Group {
 	}
 
 	return groups
+}
+
+func (h *Hub) listOnline() []ProfileData {
+	var profiles []ProfileData
+
+	for _, client := range h.users {
+		profiles = append(profiles, client.profile)
+	}
+
+	return profiles
 }

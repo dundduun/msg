@@ -13,6 +13,7 @@ var (
 	ErrNoProfile     = errors.New("profile not found")
 	ErrUsernameTaken = errors.New("username is taken")
 	ErrCacheMiss     = errors.New("profile not found in cache")
+	ErrBadId         = errors.New("bad id")
 )
 
 type Repo interface {
@@ -42,6 +43,10 @@ func NewService(cache Cache, repo Repo, log *slog.Logger) *Service {
 func (s *Service) GetProfile(ctx context.Context, uid uuid.UUID) (Profile, error) {
 	const op = "profile.Service.Check"
 	log := s.log.With(slog.String("op", op), slog.String("uid", uid.String()))
+
+	if uid == uuid.Nil {
+		return Profile{}, ErrBadId
+	}
 
 	profile, err := s.cache.Get(ctx, uid)
 	if err == nil {

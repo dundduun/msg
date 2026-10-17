@@ -14,6 +14,7 @@ import (
 	"github.com/dundduun/msg/core/pkg/logerr"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"log/slog"
@@ -40,19 +41,21 @@ func New(log *slog.Logger, rdb *redis.Client, conn *pgx.Conn, port int, profileT
 		panic("failed to create ticket cache: " + err.Error())
 	}
 
+	profileService := profile.NewService(
+		profileCache,
+		postgres.NewProfileRepo(conn),
+		log,
+	)
 	profileHandler := handlers.NewProfileHandler(
-		profile.NewService(
-			profileCache,
-			postgres.NewProfileRepo(conn),
-			log,
-		),
+		profileService,
 	)
 	ticketService := ticket.NewService(ticketCache, log)
 	ticketHandler := handlers.NewTicketHandler(log, ticketService)
-	wsHandler := ws.NewHandler(log)
+	wsHandler := ws.NewHandler(log, profileService)
 	authMiddleware := auth.NewMiddleware(log, jwt.NewService(secret), ticketService)
 
 	r := chi.NewRouter()
+	r.Use(cors.AllowAll().Handler)
 	r.Use(middleware.Logger)
 	r.Get("/profile/{id}", profileHandler.GetProfile)
 	r.Post("/profile", profileHandler.CreateProfile)
