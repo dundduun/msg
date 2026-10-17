@@ -1,20 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket client</title>
+</head>
+<body>
+<h3>профиль</h3>
+
+<select id="profiles"></select>
+<button id="add">добавить профиль</button>
+<button id="remove">удалить профиль</button>
+
+<p>
+    <input id="token" placeholder="JWT токен" size="70">
+    <button id="save">сохранить профиль</button>
+</p>
+
+<p id="status">не подключено</p>
+
+<hr>
+
+<h3>сообщения</h3>
+
+<select id="presets"></select>
+<button id="usePreset">выбрать</button>
+<button id="deletePreset">удалить пресет</button>
+
+<p>
+    <input id="presetName" placeholder="название пресета">
+    <input id="presetText" placeholder="текст сообщения">
+    <button id="addPreset">добавить пресет</button>
+</p>
+
 <ul id="log"></ul>
-<label for="text"></label><input id="text" placeholder="сообщение" />
+
+<input id="text" placeholder="сообщение">
 <button id="send" disabled>отправить</button>
 
 <script>
-    const socket = new WebSocket("ws://localhost:8080/ws");
+    const TICKET_URL = "http://localhost:8080/ws/ticket";
+    const WS_URL = "ws://localhost:8080/ws";
+
+    const profilesSelect = document.getElementById("profiles");
+    const tokenInput = document.getElementById("token");
     const log = document.getElementById("log");
+    const status = document.getElementById("status");
+    const sendButton = document.getElementById("send");
+    const textInput = document.getElementById("text");
 
-    socket.onopen = () => { document.getElementById("send").disabled = false; };
-    socket.onmessage = (e) => {
-        const item = document.createElement("li");
-        item.textContent = "эхо: " + e.data;
-        log.appendChild(item);
-    };
-    socket.onclose = (event) => { document.getElementById("send").disabled = true; console.log("closed: ", event)};
+    const presetsSelect = document.getElementById("presets");
+    const presetNameInput = document.getElementById("presetName");
+    const presetTextInput = document.getElementById("presetText");
 
-    document.getElementById("send").onclick = () => {
-        socket.send(document.getElementById("text").value);
+    let profiles = JSON.parse(
+        localStorage.getItem("profiles") || "[]"
+    );
+
+    let presets = JSON.parse(
+        localStorage.getItem("messagePresets") || "[]"
+    );
+
+    let socket = null;
+    let connectionID = 0;
+
+    function saveProfiles() {
+        localStorage.setItem("profiles", JSON.stringify(profiles));
+    }
+
+    function savePresets() {
+        localStorage.setItem("messagePresets", JSON.stringify(presets));
+    }
+
+    function getUID(token) {
+        const parts = token.split(".");
+
+        if (parts.length !== 3) {
+            throw new Error("некорректный JWT");
+        }
+
+        const payload = parts[1]
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+
+        const claims = JSON.parse(
+            decodeURIComponent(
+                Array.from(atob(payload), c =>
+                    "%" + c.charCodeAt(0)
+                        .toString(16)
+                        .padStart(2, "0")
+                ).join("")
+            )
+        );
+
+        if (!claims.uid) {
+            throw new Error("в JWT отсутствует uid");
+        }
+
+        return claims.uid;
+    }
+
+    function renderProfiles(selectedUID) {
+        profilesSelect.replaceChildren();
+
+        for (const profile of profiles) {
+            const option = document.createElement("option");
+            option.value = profile.uid;
+            option.textContent = profile.uid;
+            profilesSelect.appendChild(option);
+        }
+
+        if (selectedUID) {
+            profilesSelect.value = selectedUID;
+        }
+
+        if (profiles.length === 0) {
+            profilesSelect.add(new Option("нет профилей", ""));
+        }
+    }
+
+    function renderPresets(selectedID) {
+        presetsSelect.replaceChildren();
+
+        presets.forEach((preset, index) => {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = preset.name;
+            presetsSelect.appendChild(option);
+        });
+
+        if (selectedID !== undefined) {
+            presetsSelect.value = String(selectedID);
+        }
+
+        if (presets.length === 0) {
+            presetsSelect.add(new Option("нет пресетов", ""));
+        }
+    }
+
+    function closeSocket() {
+        connectionID++;
+
+        if (socket) {
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onerror = null;
+            socket.onclose = null;
+            socket.close();
+            socket = null;
+        }
+
+        sendButton.disabled = true;
+        status.textContent = "не подключено";
+    }
+
+    async function connectProfile(uid) {
+        closeSocket();
+
+        const id = connectionID;
+        const profile = profiles.find(p => p.uid === uid);
+
+        if (!profile) return;
+
+        log.replaceChildren();
+        status.textContent = "получение тикета...";
+
+        try {
+            const response = await fetch(TICKET_URL, {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + profile.token
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    "ошибка получения тикета: " + response.status
+                );
+            }
+
+            const data = await response.json();
+
+            if (!data.ticket) {
+                throw new Error("сервер не вернул ticket");
+            }
+
+            if (id !== connectionID) return;
+
+            const ws = new WebSocket(
+                WS_URL + "?ticket=" + encodeURIComponent(data.ticket)
+            );
+
+            socket = ws;
+            status.textContent = "подключение...";
+
+            ws.onopen = () => {
+                if (id !== connectionID) return;
+
+                status.textContent = "подключено: " + uid;
+                sendButton.disabled = false;
+            };
+
+            ws.onmessage = event => {
+                if (id !== connectionID) return;
+
+                const item = document.createElement("li");
+                item.textContent = event.data;
+                log.appendChild(item);
+            };
+
+            ws.onerror = () => {
+                if (id === connectionID) {
+                    status.textContent = "ошибка WebSocket";
+                }
+            };
+
+            ws.onclose = () => {
+                if (id !== connectionID) return;
+
+                sendButton.disabled = true;
+                status.textContent = "соединение закрыто";
+                socket = null;
+            };
+        } catch (error) {
+            if (id !== connectionID) return;
+
+            status.textContent = error.message;
+            console.error(error);
+        }
+    }
+
+    document.getElementById("add").onclick = () => {
+        tokenInput.value = "";
+        tokenInput.focus();
     };
+
+    document.getElementById("save").onclick = async () => {
+        try {
+            const token = tokenInput.value.trim();
+            const uid = getUID(token);
+
+            const existing = profiles.find(p => p.uid === uid);
+
+            if (existing) {
+                existing.token = token;
+            } else {
+                profiles.push({ uid, token });
+            }
+
+            saveProfiles();
+            renderProfiles(uid);
+            await connectProfile(uid);
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    };
+
+    document.getElementById("remove").onclick = () => {
+        const uid = profilesSelect.value;
+
+        closeSocket();
+
+        profiles = profiles.filter(p => p.uid !== uid);
+        saveProfiles();
+        renderProfiles();
+
+        if (profiles.length > 0) {
+            profilesSelect.selectedIndex = 0;
+            connectProfile(profilesSelect.value);
+        }
+    };
+
+    profilesSelect.onchange = () => {
+        connectProfile(profilesSelect.value);
+    };
+
+    document.getElementById("addPreset").onclick = () => {
+        const name = presetNameInput.value.trim();
+        const message = presetTextInput.value;
+
+        if (!name || !message.trim()) {
+            alert("укажи название и текст сообщения");
+            return;
+        }
+
+        presets.push({
+            name,
+            message
+        });
+
+        savePresets();
+        renderPresets(presets.length - 1);
+
+        presetNameInput.value = "";
+        presetTextInput.value = "";
+    };
+
+    document.getElementById("usePreset").onclick = () => {
+        const index = Number(presetsSelect.value);
+        const preset = presets[index];
+
+        if (!preset) return;
+
+        textInput.value = preset.message;
+        textInput.focus();
+    };
+
+    presetsSelect.onchange = () => {
+        const preset = presets[Number(presetsSelect.value)];
+
+        if (preset) {
+            presetNameInput.value = preset.name;
+            presetTextInput.value = preset.message;
+        }
+    };
+
+    document.getElementById("deletePreset").onclick = () => {
+        const index = Number(presetsSelect.value);
+
+        if (!presets[index]) return;
+
+        presets.splice(index, 1);
+        savePresets();
+        renderPresets();
+        presetNameInput.value = "";
+        presetTextInput.value = "";
+    };
+
+    sendButton.onclick = () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(textInput.value);
+            textInput.value = "";
+        }
+    };
+
+    textInput.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !sendButton.disabled) {
+            sendButton.click();
+        }
+    });
+
+    renderProfiles();
+    renderPresets();
+
+    if (profiles.length > 0) {
+        connectProfile(profilesSelect.value);
+    }
 </script>
+</body>
+</html>
